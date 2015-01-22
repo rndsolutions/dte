@@ -1,9 +1,4 @@
 ﻿using RnD.Business;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.SelfHost;
 
@@ -27,6 +22,12 @@ namespace RnD.Controller
 
         private HttpSelfHostServer _server;
         private AgentsRepository _agentsRepository;
+
+        public AgentsRepository AgentsRepository
+        {
+            get { return _agentsRepository; }
+            set { _agentsRepository = value; }
+        }
         private Dispatcher _dispatcher;
 
         public Dispatcher Dispatcher
@@ -43,6 +44,7 @@ namespace RnD.Controller
         private Server()
         {
             _dispatcher = new Dispatcher();
+            _agentsRepository = new AgentsRepository();
         }
 
         public static Server Instance
@@ -57,12 +59,13 @@ namespace RnD.Controller
             }
         }
 
-        #endregion //Singleton Implementatio
+        #endregion //Singleton Implementation
 
         public static string BaseAddress = "http://localhost:8080";
 
         public void Start()
         {
+            Logger.Logg("Starting server on address: {0}", BaseAddress);
             var config = new HttpSelfHostConfiguration(BaseAddress);
 
             //config.Routes.MapHttpRoute(
@@ -74,12 +77,15 @@ namespace RnD.Controller
 
             _server.OpenAsync().Wait();
 
+            Logger.Logg("Server started on address: {0}", BaseAddress);
 
         }
 
         public void Stop()
         {
-            _server.CloseAsync();
+            Logger.Logg("Stopping server.");
+            _server.CloseAsync().Wait();
+            Logger.Logg("Server was Stopped.");
         }
     }
 }

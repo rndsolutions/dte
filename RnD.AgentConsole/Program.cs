@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RnD.AgentConsole
 {
@@ -12,8 +8,13 @@ namespace RnD.AgentConsole
         {
             Agent.Shell agent = new Agent.Shell();
 
+            agent.Start();
+            Console.WriteLine("Press Enter to quit.");
             Console.ReadLine();
-          //  agent.Register();
+            //Console.ReadLine();
+            //agent.DownloadMaterials();
+            //Console.ReadLine();
+            //  agent.Register();
         }
     }
 }

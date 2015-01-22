@@ -8,6 +8,7 @@ namespace RnD.Agent
         public static string ControllerMainControllerName { get; set; }
         public static string ControllerConnectMethodName { get; set; }
         public static int PollingInterval { get; set; }
+        public static string WorkingDirectory { get; set; }
 
         static Configuration()
         {
@@ -16,6 +17,8 @@ namespace RnD.Agent
             ControllerMainControllerName = "Main";
             ControllerConnectMethodName = "Connect";
             PollingInterval = 3000;
+
+            WorkingDirectory = "C:\\Testing\\";
         }
 
         public static string GetControllerAddress()

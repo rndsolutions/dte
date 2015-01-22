@@ -1,33 +1,53 @@
 ﻿using RnD.Business;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace RnD.Controller
 {
     public class AgentsRepository
     {
-        private List<AgentInfo> _registeredAgents;
+        private Dictionary<string, AgentInfo> _registeredAgents;
 
         public AgentsRepository()
         {
-            _registeredAgents = new List<AgentInfo>();
+            _registeredAgents = new Dictionary<string, AgentInfo>();
         }
 
-        public void RegisterAgent(AgentInfo agent)
+        public bool RegisterAgent(AgentInfo agent)
         {
-            if (_registeredAgents.FirstOrDefault(x => x.Id == agent.Id) == null)
-                _registeredAgents.Add(agent);
+            if (!_registeredAgents.ContainsKey(agent.Id))
+            {
+                _registeredAgents.Add(agent.Id, agent);
+            }
+
+            return true;
         }
 
-        public void UpdateAgentStatus(AgentInfo agent)
+        public bool UpdateAgentStatus(AgentInfo agent)
         {
-            var agt = _registeredAgents.FirstOrDefault(x => x.Id == agent.Id);
 
-            if (agt == null)
-                _registeredAgents.Add(agent);
+            if (_registeredAgents.ContainsKey(agent.Id))
+            {
+                _registeredAgents[agent.Id].Status = agent.Status;
+                return true;
+            }
             else
-                agt.Status = agent.Status;
+            {
+                return false;
+            }
+        }
 
+        public bool UpdateAgentStatus(string agentId, AgentStatus status)
+        {
+
+            if (_registeredAgents.ContainsKey(agentId))
+            {
+                _registeredAgents[agentId].Status = status;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 }
