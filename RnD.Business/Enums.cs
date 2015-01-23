@@ -9,8 +9,9 @@ namespace RnD.Business
         Idle,
         ExecutingTasks,
         DownloadingMaterials,
+        DownloadedMaterials,
         UploadingResuls
     }
 
-    public enum AgentTask { DownloadMaterials, Abort, Continue, ExecuteTests }
+    public enum AgentTask { DownloadMaterials, Abort, Continue, ExecuteTests, None }
 }

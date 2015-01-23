@@ -85,6 +85,9 @@ namespace RnD.Controller
         [HttpGet]
         public AgentTask GetTask(string agentId)
         {
+            Logger.Logg("Successfully send Task: {0} to agent '{0}'.", AgentTask.DownloadMaterials, agentId);
+
+            //  if (Server.Instance.AgentsRepository[agentId].Status == AgentStatus.DownloadedMaterials)
             return AgentTask.DownloadMaterials;
         }
 

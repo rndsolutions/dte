@@ -35,6 +35,7 @@ namespace RnD.Agent
         /// </summary>
         public void Start()
         {
+            Logger.Logg("Starting agent: {0}", this._agentInfo.Name);
             //[SD] 1. Register the Agent
             while (Register() != true)
             {
@@ -49,6 +50,8 @@ namespace RnD.Agent
             //[SD] 3. Start the two timers            
             _sendStatusTimer.Start();
             _getTaskTimer.Start();
+
+            Logger.Logg("Successfully started agent: {0}", this._agentInfo.Name);
         }
 
         /// <summary>
@@ -68,13 +71,22 @@ namespace RnD.Agent
         /// <returns>True if controller sends OK status</returns>
         public bool Register()
         {
+            Logger.Logg("Sending Register request to controller: {0}", Configuration.ControllerName);
             var request = new RestRequest("api/main/register", Method.POST);
 
-            request.AddParameter("agentInfo", _agentInfo);
+            //  request.AddParameter("agentInfo", _agentInfo);
 
+            request.AddObject(_agentInfo);
             var response = _restClient.Execute<HttpStatusCode>(request);
 
-            return response.StatusCode == HttpStatusCode.OK;
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Logg("Error sending Register request to controller. StatusCode: {0}", response.StatusCode);
+                return false;
+            }
+
+            Logger.Logg("Agent was registered successfully", Configuration.ControllerName);
+            return true;
         }
 
         /// <summary>
@@ -83,13 +95,21 @@ namespace RnD.Agent
         /// <returns>Returns the HttpStatusCode from the controller</returns>
         private bool SendStatus()
         {
+            Logger.Logg("Start sending status to controller.");
             var request = new RestRequest("api/main/RecieveAgentStatus", Method.POST);
-            request.AddParameter("agentId", "123");
-            request.AddParameter("status", this._status);
+            request.AddParameter("agentId", "123", ParameterType.QueryString);
+            request.AddParameter("status", this._status, ParameterType.QueryString);
 
             var response = _restClient.Execute<HttpStatusCode>(request);
 
-            return response.StatusCode == HttpStatusCode.OK;
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Logg("Error sending status to controller. StatusCode: {0}{1}{2}", response.StatusCode, Environment.NewLine, response.Content);
+                return false;
+            }
+
+            Logger.Logg("Status to controller was successfully send.");
+            return true;
         }
 
         /// <summary>
@@ -97,11 +117,23 @@ namespace RnD.Agent
         /// </summary>
         private AgentTask GetTask()
         {
-            var request = new RestRequest("api/main/GetTask", Method.POST);
+            Logger.Logg("Start GetTask");
 
-            request.AddParameter("status", this._status, ParameterType.GetOrPost);
+            var request = new RestRequest("api/main/GetTask", Method.GET);
+
+            request.AddParameter("agentId", this._agentInfo.Id, ParameterType.QueryString);
 
             var response = _restClient.Execute<AgentTask>(request);
+
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Logg("Error in GetTask. StatusCode: {0}{1}{2}", response.StatusCode, Environment.NewLine, response.Content);
+                return AgentTask.None;
+            }
+
+            Logger.Logg("Completed GetTask. Controller returned: {0}", response.Data);
+
+            ExecuteTask(response.Data);
 
             return response.Data;
         }
@@ -118,7 +150,6 @@ namespace RnD.Agent
         {
             Logger.Logg("START DownloadMaterials");
             var request = new RestRequest("api/main/DownloadMaterial", Method.GET);
-            //  var response = _restClient.DownloadData(request);
 
             var response = _restClient.Execute(request);
 
@@ -132,6 +163,7 @@ namespace RnD.Agent
             {
                 Logger.Logg("START Saving File: {0}", "1.txt");
                 File.WriteAllBytes(Configuration.WorkingDirectory + "1.txt", response.RawBytes);
+                //[SD] We need to add verification of the download like GO server 
                 Logger.Logg("END Saving File: {0}", "1.txt");
             }
 
@@ -143,9 +175,20 @@ namespace RnD.Agent
         /// </summary>
         private void ExecuteTask(AgentTask task)
         {
+            _getTaskTimer.Stop();
+
             switch (task)
             {
                 case AgentTask.DownloadMaterials:
+                    if (DownloadMaterials())
+                    {
+                        UpdateStatus(AgentStatus.DownloadedMaterials);
+                    }
+                    else
+                    {
+                        //[SD] Set status to idle so the controller can decide if the agent needs to retry the download. The run may be over and retries may not be needed. 
+                        UpdateStatus(AgentStatus.Idle);
+                    }
                     break;
                 case AgentTask.Abort:
                     break;
@@ -156,6 +199,9 @@ namespace RnD.Agent
                 default:
                     break;
             }
+
+            _getTaskTimer.Start();
+
         }
 
         /// <summary>

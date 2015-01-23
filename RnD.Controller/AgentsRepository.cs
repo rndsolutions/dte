@@ -49,5 +49,20 @@ namespace RnD.Controller
                 return false;
             }
         }
+
+        public AgentInfo this[string agentId]
+        {
+            get
+            {
+                if (this._registeredAgents.ContainsKey(agentId))
+                {
+                    return this._registeredAgents[agentId];
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }
     }
 }

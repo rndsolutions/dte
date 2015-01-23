@@ -87,5 +87,7 @@ namespace RnD.Controller
             _server.CloseAsync().Wait();
             Logger.Logg("Server was Stopped.");
         }
+
+      
     }
 }
