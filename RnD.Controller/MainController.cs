@@ -83,12 +83,14 @@ namespace RnD.Controller
 
 
         [HttpGet]
-        public AgentTask GetTask(string agentId)
+        public TaskInfo GetTask(string agentId)
         {
             Logger.Logg("Successfully send Task: {0} to agent '{0}'.", AgentTask.DownloadMaterials, agentId);
 
+            var agent = Server.Instance.AgentsRepository[agentId];
+            return Server.Instance.Dispatcher.AssignTaskToAgent(agent);
             //  if (Server.Instance.AgentsRepository[agentId].Status == AgentStatus.DownloadedMaterials)
-            return AgentTask.DownloadMaterials;
+            // return AgentTask.DownloadMaterials;
         }
 
         [HttpPost]

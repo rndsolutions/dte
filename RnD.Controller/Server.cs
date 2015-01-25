@@ -1,4 +1,5 @@
 ﻿using RnD.Business;
+using RnD.Controller.Test;
 using System.Web.Http;
 using System.Web.Http.SelfHost;
 
@@ -45,6 +46,8 @@ namespace RnD.Controller
         {
             _dispatcher = new Dispatcher();
             _agentsRepository = new AgentsRepository();
+            TestRunner t = new TestRunner();
+            
         }
 
         public static Server Instance
@@ -88,6 +91,6 @@ namespace RnD.Controller
             Logger.Logg("Server was Stopped.");
         }
 
-      
+
     }
 }

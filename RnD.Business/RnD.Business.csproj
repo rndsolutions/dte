@@ -42,6 +42,7 @@
     <Compile Include="AgentInfo.cs" />
     <Compile Include="Enums.cs" />
     <Compile Include="EnvironmentInfo.cs" />
+    <Compile Include="TaskInfo.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

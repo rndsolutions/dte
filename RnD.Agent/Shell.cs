@@ -115,7 +115,7 @@ namespace RnD.Agent
         /// <summary>
         /// Returns information about what tasks to execute.
         /// </summary>
-        private AgentTask GetTask()
+        private TaskInfo GetTask()
         {
             Logger.Logg("Start GetTask");
 
@@ -123,12 +123,12 @@ namespace RnD.Agent
 
             request.AddParameter("agentId", this._agentInfo.Id, ParameterType.QueryString);
 
-            var response = _restClient.Execute<AgentTask>(request);
+            var response = _restClient.Execute<TaskInfo>(request);
 
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Logg("Error in GetTask. StatusCode: {0}{1}{2}", response.StatusCode, Environment.NewLine, response.Content);
-                return AgentTask.None;
+                return TaskInfo.NoneTask;
             }
 
             Logger.Logg("Completed GetTask. Controller returned: {0}", response.Data);
@@ -146,10 +146,10 @@ namespace RnD.Agent
 
         }
 
-        public bool DownloadMaterials()
+        public bool DownloadMaterials(string donwloadMethodName, string fileName)
         {
             Logger.Logg("START DownloadMaterials");
-            var request = new RestRequest("api/main/DownloadMaterial", Method.GET);
+            var request = new RestRequest("api/main/" + donwloadMethodName, Method.GET);
 
             var response = _restClient.Execute(request);
 
@@ -161,10 +161,10 @@ namespace RnD.Agent
 
             if (status == HttpStatusCode.OK)
             {
-                Logger.Logg("START Saving File: {0}", "1.txt");
-                File.WriteAllBytes(Configuration.WorkingDirectory + "1.txt", response.RawBytes);
+                Logger.Logg("START Saving File: {0}", fileName);
+                File.WriteAllBytes(Configuration.WorkingDirectory + fileName, response.RawBytes);
                 //[SD] We need to add verification of the download like GO server 
-                Logger.Logg("END Saving File: {0}", "1.txt");
+                Logger.Logg("END Saving File: {0}", fileName);
             }
 
             return status == HttpStatusCode.OK;
@@ -173,14 +173,14 @@ namespace RnD.Agent
         /// <summary>
         /// Do the actual job. Run tests, send update etc.
         /// </summary>
-        private void ExecuteTask(AgentTask task)
+        private void ExecuteTask(TaskInfo task)
         {
             _getTaskTimer.Stop();
 
-            switch (task)
+            switch (task.Task)
             {
                 case AgentTask.DownloadMaterials:
-                    if (DownloadMaterials())
+                    if (DownloadMaterials(task.ControllerMethodName, task.Data))
                     {
                         UpdateStatus(AgentStatus.DownloadedMaterials);
                     }
