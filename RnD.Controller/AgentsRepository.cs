@@ -1,5 +1,6 @@
 ﻿using RnD.Business;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace RnD.Controller
 {
@@ -48,6 +49,11 @@ namespace RnD.Controller
             {
                 return false;
             }
+        }
+
+        public List<AgentInfo> GetIdleAgents()
+        {
+            return _registeredAgents.Values.Where(x => x.Status == AgentStatus.Idle).ToList();
         }
 
         public AgentInfo this[string agentId]

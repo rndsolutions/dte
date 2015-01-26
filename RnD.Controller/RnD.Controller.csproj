@@ -59,7 +59,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AgentsRepository.cs" />
+    <Compile Include="Configuration.cs" />
     <Compile Include="Dispatcher.cs" />
+    <Compile Include="Reflection\ReflectionUtilities.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="MainController.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

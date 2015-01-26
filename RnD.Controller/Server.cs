@@ -44,8 +44,9 @@ namespace RnD.Controller
 
         private Server()
         {
-            _dispatcher = new Dispatcher();
             _agentsRepository = new AgentsRepository();
+            _dispatcher = new Dispatcher(AgentsRepository);
+
             TestRunner t = new TestRunner();
             
         }

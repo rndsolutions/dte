@@ -1,5 +1,5 @@
 ﻿
-using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -10,19 +10,47 @@ namespace RnD.Controller.Test
     {
         /// <summary>
         /// Read the arguments meant for nunit-console. 
-        /// [SD] This is a test implementation until. Reuse nunit original code. 
         /// </summary>
         /// <param name="arguments"></param>
-        public static List<TestExecutionInfo> ParseNunitCommands(string arguments)
+        public static TestExecutionInfo ParseNunitCommands(string[] arguments)
         {
-            List<TestExecutionInfo> result = new List<TestExecutionInfo>();
+            var testExecutionInfo = new TestExecutionInfo();
+            var agregatedComands = new StringBuilder();
 
-            Wildcard assembly = new Wildcard("*.dll");
-            var assemblyName = assembly.Match(arguments).Value;
+            foreach (var argument in arguments)
+            {
+                if (argument.EndsWith(".dll"))
+                {
+                    testExecutionInfo.AssemblyNames.Add(argument);
+                }
+                else if (argument.StartsWith("/run:"))
+                {
+                    testExecutionInfo.RunItems = argument.Substring(5).Split(',').ToList();
+                }
+                else if (argument.StartsWith("/include:"))
+                {
+                    testExecutionInfo.IncludeCategories = argument.Substring(5).Split(',').ToList();
+                }
+                else if (argument.StartsWith("/exclude:"))
+                {
+                    testExecutionInfo.ExcludeCategories = argument.Substring(5).Split(',').ToList();
+                }
+                else
+                {
+                    agregatedComands.Append(argument + " ");
+                }
 
-            result.Add(new TestExecutionInfo { AssemblyName = assemblyName });
+            }
 
-            return result;
+            if (agregatedComands.Length > 0)
+            {
+                //Remove the last empty space
+                agregatedComands.Remove(agregatedComands.Length - 1, 1);
+
+                testExecutionInfo.AgregatedArguments = agregatedComands.ToString();
+            }
+
+            return testExecutionInfo;
         }
     }
 

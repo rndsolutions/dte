@@ -13,5 +13,23 @@ namespace RnD.Business
         UploadingResuls
     }
 
+    public enum ControllerStatus
+    {
+        Idle,
+        ClearingSandBox,
+        CopyingMaterials,
+        AnalyzeTestAssemblies,
+        ZippingFiles,
+        LocatingIdleAgents,
+        RunInProgress,
+        MeergingTestResults
+    }
+
+    public enum TestStatus
+    {
+        Executed,
+        NotExecuted,
+        Pendind
+    }
     public enum AgentTask { DownloadMaterials, Abort, Continue, ExecuteTests, None }
 }

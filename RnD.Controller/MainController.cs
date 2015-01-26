@@ -88,9 +88,8 @@ namespace RnD.Controller
             Logger.Logg("Successfully send Task: {0} to agent '{0}'.", AgentTask.DownloadMaterials, agentId);
 
             var agent = Server.Instance.AgentsRepository[agentId];
+
             return Server.Instance.Dispatcher.AssignTaskToAgent(agent);
-            //  if (Server.Instance.AgentsRepository[agentId].Status == AgentStatus.DownloadedMaterials)
-            // return AgentTask.DownloadMaterials;
         }
 
         [HttpPost]
