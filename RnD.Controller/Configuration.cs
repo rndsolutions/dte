@@ -1,11 +1,14 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 
 namespace RnD.Controller
 {
     //TODO: Implement - http://stackoverflow.com/questions/3935331/how-to-implement-a-configurationsection-with-a-configurationelementcollection
     public class Configuration
     {
+        private static string _lastGeneratedRunFolder;
+
         public static string ControllerName { get; set; }
         public static int ControllerPort { get; set; }
 
@@ -24,7 +27,7 @@ namespace RnD.Controller
         public static string ExecutionArguments { get; set; }
 
 
-        public Configuration()
+        static Configuration()
         {
             ControllerName = "localhost";
             ControllerPort = 8080;
@@ -39,29 +42,48 @@ namespace RnD.Controller
             ZipFileName = "materials.package.zip";
         }
 
-        public static string GetFullPath(string subDirectory)
+        public static string GetFullPath(params string[] subDirectories)
         {
-            return Directory.GetCurrentDirectory() + subDirectory;
+            if (subDirectories.Length == 0)
+            {
+                return Directory.GetCurrentDirectory();
+            }
+            else
+            {
+                var builder = new StringBuilder();
+                builder.Append(Directory.GetCurrentDirectory());
+
+                foreach (var dir in subDirectories)
+                {
+                    builder.Append("\\");
+                    builder.Append(dir);
+                }
+
+                return builder.ToString();
+            }
+
         }
 
-        public static string GetRunFolderPath()
+        public static string CreateRunFolderPath()
         {
-            return Directory.GetCurrentDirectory() + WorkingDirectoryRootFolder + "\\" + string.Format(RunFolderFormatString, DateTime.Now);
+            Configuration._lastGeneratedRunFolder = string.Format(RunFolderFormatString, DateTime.Now);
+
+            return GetFullPath(WorkingDirectoryRootFolder, Configuration._lastGeneratedRunFolder);
         }
 
         public static string GetFullPathToInputFolder()
         {
-            return GetFullPath(InputFolderName);
+            return GetFullPath(WorkingDirectoryRootFolder, Configuration._lastGeneratedRunFolder, InputFolderName);
         }
 
         public static string GetFullPathToOutputFolder()
         {
-            return GetFullPath(OutputFolderName);
+            return GetFullPath(WorkingDirectoryRootFolder, Configuration._lastGeneratedRunFolder, OutputFolderName);
         }
 
         public static string GetFullPathToDeploymentItemsFolder()
         {
-            return GetFullPath(OutputFolderName + "\\" + DeploymentItemsFolderName);
+            return GetFullPath(WorkingDirectoryRootFolder, Configuration._lastGeneratedRunFolder, InputFolderName, DeploymentItemsFolderName);
         }
     }
 }

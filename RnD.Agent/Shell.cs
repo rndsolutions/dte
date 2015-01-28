@@ -1,6 +1,7 @@
 ﻿using RestSharp;
 using RnD.Business;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Timers;
@@ -13,13 +14,16 @@ namespace RnD.Agent
         private Timer _sendStatusTimer;
         private Timer _getTaskTimer;
         private AgentStatus _status;
+        private TestRunner _testRunner;
         private AgentInfo _agentInfo;
 
         private Object thisLock = new Object();
 
         public Shell()
         {
-            _restClient = new RestClient("http://localhost:8080");
+            _testRunner = new TestRunner();
+
+            _restClient = new RestClient(Configuration.GetControllerAddress());
 
             _sendStatusTimer = new Timer(Configuration.PollingInterval);
             _getTaskTimer = new Timer(Configuration.PollingInterval);
@@ -40,7 +44,7 @@ namespace RnD.Agent
             while (Register() != true)
             {
                 //[SD] Block until the agent is registered
-                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(30));
+                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(5));
             }
 
             //[SD] 2. Set the agent status to Idle
@@ -52,7 +56,10 @@ namespace RnD.Agent
             _getTaskTimer.Start();
 
             Logger.Logg("Successfully started agent: {0}", this._agentInfo.Name);
+
+
         }
+
 
         /// <summary>
         /// Stops the agent.
@@ -74,14 +81,13 @@ namespace RnD.Agent
             Logger.Logg("Sending Register request to controller: {0}", Configuration.ControllerName);
             var request = new RestRequest("api/main/register", Method.POST);
 
-            //  request.AddParameter("agentInfo", _agentInfo);
 
             request.AddObject(_agentInfo);
             var response = _restClient.Execute<HttpStatusCode>(request);
 
             if (response.StatusCode != HttpStatusCode.OK)
             {
-                Logger.Logg("Error sending Register request to controller. StatusCode: {0}", response.StatusCode);
+                Logger.Logg("Error sending Register request to controller. StatusCode: {0}{1}Content: {2}", response.StatusCode, Environment.NewLine, response.Content);
                 return false;
             }
 
@@ -131,7 +137,7 @@ namespace RnD.Agent
                 return TaskInfo.NoneTask;
             }
 
-            Logger.Logg("Completed GetTask. Controller returned: {0}", response.Data);
+            Logger.Logg("Completed GetTask. Controller returned: {0}", response.Data.Task);
 
             ExecuteTask(response.Data);
 
@@ -141,13 +147,24 @@ namespace RnD.Agent
         /// <summary>
         /// Sends the results from test execution.
         /// </summary>
-        private void SendReport()
+        private bool UploatTestResults()
         {
+            var request = new RestRequest("api/main/UploadReport", Method.POST);
 
+            request.AddParameter("agentId", _agentInfo.Id, ParameterType.QueryString);
+
+            request.AddFile("TestResultFile.txt", this._testRunner.ActiveTestResultFilePath.Replace("\"", ""));
+
+            var response = _restClient.Execute(request);
+            UpdateStatus(AgentStatus.FileExtracted);
+
+            return true;
         }
 
         public bool DownloadMaterials(string donwloadMethodName, string fileName)
         {
+            Configuration.DownloadedZipPath = string.Empty;
+
             Logger.Logg("START DownloadMaterials");
             var request = new RestRequest("api/main/" + donwloadMethodName, Method.GET);
 
@@ -162,12 +179,29 @@ namespace RnD.Agent
             if (status == HttpStatusCode.OK)
             {
                 Logger.Logg("START Saving File: {0}", fileName);
-                File.WriteAllBytes(Configuration.WorkingDirectory + fileName, response.RawBytes);
+
+                var deploymentDirectory = Configuration.GetFullPathToInputFolder();
+
+                Directory.CreateDirectory(deploymentDirectory);
+
+                Configuration.DownloadedZipPath = deploymentDirectory + "\\" + fileName;
+                File.WriteAllBytes(Configuration.DownloadedZipPath, response.RawBytes);
                 //[SD] We need to add verification of the download like GO server 
                 Logger.Logg("END Saving File: {0}", fileName);
             }
 
             return status == HttpStatusCode.OK;
+        }
+
+        private void ClearSandbox()
+        {
+            UpdateStatus(AgentStatus.ClearingSandBox);
+
+            var sandbox = Configuration.GetFullPath(Configuration.WorkingDirectoryRootFolder);
+
+            DeleteDirectory(sandbox);
+
+            Directory.CreateDirectory(sandbox);
         }
 
         /// <summary>
@@ -180,9 +214,16 @@ namespace RnD.Agent
             switch (task.Task)
             {
                 case AgentTask.DownloadMaterials:
+
+                    ClearSandbox();
+
                     if (DownloadMaterials(task.ControllerMethodName, task.Data))
                     {
                         UpdateStatus(AgentStatus.DownloadedMaterials);
+
+                        UpdateStatus(AgentStatus.ExtractingFile);
+                        _testRunner.UnzipMaterials(Configuration.DownloadedZipPath);
+                        UpdateStatus(AgentStatus.FileExtracted);
                     }
                     else
                     {
@@ -195,6 +236,9 @@ namespace RnD.Agent
                 case AgentTask.Continue:
                     break;
                 case AgentTask.ExecuteTests:
+                    UpdateStatus(AgentStatus.ExecutingTasks);
+                    _testRunner.RunTests(task.Data);
+                    UploatTestResults();
                     break;
                 default:
                     break;
@@ -214,6 +258,8 @@ namespace RnD.Agent
             {
                 this._status = status;
             }
+
+            Logger.Logg("Agent Status: {0}", this._status);
         }
 
         /// <summary>
@@ -227,5 +273,57 @@ namespace RnD.Agent
             var response = _restClient.Execute(request);
             return response.StatusCode;
         }
+
+        #region File System
+
+
+        public static void CopyAll(string source, string target, SearchOption option = SearchOption.AllDirectories, List<string> dirsToSkip = null)
+        {
+            if (!source.EndsWith("\\"))
+                source += "\\";
+            if (!target.EndsWith("\\"))
+                target += "\\";
+
+            var dirsSource = new List<string>(Directory.GetDirectories(source, "*", option));
+            var filesSource = new List<string>(Directory.GetFiles(source, "*", option));
+
+            if (dirsToSkip != null)
+            {
+                foreach (var dir in dirsToSkip)
+                {
+                    dirsSource.RemoveAll(e => e.Contains(dir));
+                    filesSource.RemoveAll(e => e.Contains(dir));
+                }
+            }
+
+            //if (Directory.Exists(target))
+            //{
+            //    Directory.Delete(target, true);
+            //}
+
+            foreach (var dir in dirsSource)
+                Directory.CreateDirectory(dir.Replace(source, target));
+
+            foreach (var file in filesSource)
+                File.Copy(file, file.Replace(source, target), true);
+        }
+
+        public static void DeleteDirectory(string path)
+        {
+            if (Directory.Exists(path))
+            {
+                var files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+                var dirs = Directory.GetDirectories(path, "*", SearchOption.AllDirectories);
+
+                foreach (var file in files)
+                {
+                    File.Delete(file);
+                }
+
+                Directory.Delete(path, true);
+            }
+        }
+
+        #endregion //File System
     }
 }

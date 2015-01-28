@@ -4,11 +4,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 
 namespace RnD.Controller.Test
 {
     public class TestRunner
     {
+        private string _originalExecutionArguments;
         private List<string> _tests;
 
         private List<string> _notExecutedTests;
@@ -37,14 +39,14 @@ namespace RnD.Controller.Test
 
         public TestRunner()
         {
-            var path = @"C:\Users\sdimitrov\Documents\Visual Studio 2013\Projects\TestAutomationMock\NunitUnitTestProject\bin\Debug";
-            ReadTests(path, "NunitUnitTestProject.dll sdsdsd.dll /run:CalculatorLib.Tests");
-
-
+            this._pendingTests = new List<string>();
+            this._executedTests = new List<string>();
+            this._notExecutedTests = new List<string>();
         }
 
         public void ReadTests(string rootDirectory, string nunitExecutionArguments)
         {
+            this._originalExecutionArguments = nunitExecutionArguments;
             var nunutTestClassAttributeName = "TestFixtureAttribute";
             var nunutTestMethodAttributeName = "TestAttribute";
 
@@ -97,10 +99,10 @@ namespace RnD.Controller.Test
                     }
                 }
 
-
-                this._tests = testMethods.Select(x => x.ReflectedType.FullName + "." + x.Name).ToList();
-                this._notExecutedTests = testMethods.Select(x => x.ReflectedType.FullName + "." + x.Name).ToList();
             }
+
+            this._tests = testMethods.Select(x => x.ReflectedType.FullName + "." + x.Name).ToList();
+            this._notExecutedTests = testMethods.Select(x => x.ReflectedType.FullName + "." + x.Name).ToList();
         }
 
         public List<string> GetTestsForExecution(int bucketSize)
@@ -113,11 +115,49 @@ namespace RnD.Controller.Test
                 {
                     this._pendingTests.Add(this._notExecutedTests[0]);
                     this._notExecutedTests.RemoveAt(0);
-                    pendingTests.Add(this._notExecutedTests[0]);
+                    pendingTests.Add(this._pendingTests[0]);
                 }
+                else
+                    break;
             }
 
             return pendingTests;
+        }
+
+        public string GetTestsForExecutionAsCommand(int bucketSize)
+        {
+            var builder = new StringBuilder();
+
+            var tests = GetTestsForExecution(bucketSize);
+
+            builder.Append("/run:");
+
+            for (int i = 0; i < tests.Count; i++)
+            {
+                builder.Append(tests[i]);
+
+                if (i == tests.Count - 2)
+                    builder.Append(",");
+            }
+
+            return ReplaceArguments(builder.ToString());
+        }
+
+        public bool AreAllTestsExecuted()
+        {
+            return this._notExecutedTests.Count == 0;
+        }
+
+        private string ReplaceArguments(string newRunArguments)
+        {
+            var start = _originalExecutionArguments.IndexOf("/run:");
+            var end = _originalExecutionArguments.IndexOf(" ", start);
+
+            if (end == -1)
+                end = _originalExecutionArguments.Length - 1;
+
+            return _originalExecutionArguments.Replace(_originalExecutionArguments.Substring(start, end - start + 1), newRunArguments);
+
         }
 
         public void MarkTestsAsExecuted(List<string> executedTests)

@@ -16,8 +16,13 @@ namespace RnD.Controller
         private TestRunner _testRunner;
         private AgentsRepository _agentsRepository;
 
-        private string _activeRunRootDirectory;
+
         private string _activeZipFile;
+
+        public string ActiveZipFile
+        {
+            get { return _activeZipFile; }
+        }
 
         public Dispatcher(AgentsRepository repository)
         {
@@ -60,12 +65,16 @@ namespace RnD.Controller
                     {
                         Task = AgentTask.Continue,
                     };
-                case AgentStatus.DownloadedMaterials:
-                    return new TaskInfo
+                case AgentStatus.FileExtracted:
+                    if (!this._testRunner.AreAllTestsExecuted())
                     {
-                        Task = AgentTask.ExecuteTests,
-                        Data = "nunit.exe test.dll /test=t_one /test=t_two"
-                    };
+                        return new TaskInfo
+                            {
+                                Task = AgentTask.ExecuteTests,
+                                Data = this._testRunner.GetTestsForExecutionAsCommand(2)
+                            };
+                    }
+                    break;
                 case AgentStatus.ExecutingTasks:
                     break;
                 case AgentStatus.UploadingResuls:
@@ -96,16 +105,24 @@ namespace RnD.Controller
             }
 
             StartTestRun();
+            MeergeTestResults();
 
+        }
 
+        private void MeergeTestResults()
+        {
+            UpdateStatus(ControllerStatus.MeergingTestResults);
+            //    throw new System.NotImplementedException();
         }
 
         private void StartTestRun()
         {
-            //while (_testRunner.NotExecutedTests.Count > 0)
-            //{
- 
-            //}
+            UpdateStatus(ControllerStatus.RunInProgress);
+            //[SD] USe for and create timeout. Control the max execution time
+            while (_testRunner.NotExecutedTests.Count > 0)
+            {
+                Thread.Sleep(500);
+            }
         }
 
         private bool LocateIdleAgents()
@@ -140,7 +157,7 @@ namespace RnD.Controller
             UpdateStatus(ControllerStatus.ZippingFiles);
 
             var sourceFolder = Configuration.GetFullPathToDeploymentItemsFolder();
-            _activeZipFile = Configuration.GetFullPathToOutputFolder() + "\\" + Configuration.ZipFileName;
+            _activeZipFile = Configuration.GetFullPathToInputFolder() + "\\" + Configuration.ZipFileName;
 
             using (ZipFile zip = new ZipFile())
             {
@@ -153,20 +170,22 @@ namespace RnD.Controller
         {
             UpdateStatus(ControllerStatus.AnalyzeTestAssemblies);
 
-            _testRunner.ReadTests(_activeRunRootDirectory, arguments);
+            _testRunner.ReadTests(Configuration.GetFullPathToDeploymentItemsFolder(), arguments);
         }
 
         private void CopyMaterials(string materialsSourceFolder, string arguments)
         {
             UpdateStatus(ControllerStatus.CopyingMaterials);
 
-            _activeRunRootDirectory = Configuration.GetRunFolderPath();
+            Configuration.CreateRunFolderPath();
 
-            Directory.CreateDirectory(_activeRunRootDirectory);
+            var deploymentItemsFolder = Configuration.GetFullPathToDeploymentItemsFolder();
 
-            CopyAll(materialsSourceFolder, _activeRunRootDirectory);
+            Directory.CreateDirectory(deploymentItemsFolder);
 
-            File.WriteAllText(_activeRunRootDirectory + "\\arguments.tx", arguments);
+            CopyAll(materialsSourceFolder, deploymentItemsFolder);
+
+            File.WriteAllText(deploymentItemsFolder + "\\arguments.txt", arguments);
         }
 
         private void ClearSandBox()
@@ -174,7 +193,10 @@ namespace RnD.Controller
             UpdateStatus(ControllerStatus.ClearingSandBox);
 
             var sandbox = Configuration.GetFullPath(Configuration.WorkingDirectoryRootFolder);
+
             DeleteDirectory(sandbox);
+
+            Directory.CreateDirectory(sandbox);
         }
 
         private void UpdateStatus(ControllerStatus status)
@@ -205,10 +227,10 @@ namespace RnD.Controller
                 }
             }
 
-            if (Directory.Exists(target))
-            {
-                Directory.Delete(target, true);
-            }
+            //if (Directory.Exists(target))
+            //{
+            //    Directory.Delete(target, true);
+            //}
 
             foreach (var dir in dirsSource)
                 Directory.CreateDirectory(dir.Replace(source, target));
@@ -219,15 +241,20 @@ namespace RnD.Controller
 
         public static void DeleteDirectory(string path)
         {
-            var files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
-            var dirs = Directory.GetDirectories(path, "*", SearchOption.AllDirectories);
-
-            foreach (var file in files)
+            if (Directory.Exists(path))
             {
-                File.Delete(file);
-            }
+                var files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+                var dirs = Directory.GetDirectories(path, "*", SearchOption.AllDirectories);
 
-            Directory.Delete(path, true);
+                foreach (var file in files)
+                {
+                    File.Delete(file);
+                }
+
+
+
+                Directory.Delete(path, true);
+            }
         }
 
         #endregion //File System

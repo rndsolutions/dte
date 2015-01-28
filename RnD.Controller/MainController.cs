@@ -21,7 +21,6 @@ namespace RnD.Controller
             return "Server is online";
         }
 
-
         /// <summary>
         /// Thi method is called from an agent the first time it is started and then it is added in the agents repository.
         /// </summary>
@@ -81,23 +80,51 @@ namespace RnD.Controller
             }
         }
 
-
         [HttpGet]
         public TaskInfo GetTask(string agentId)
         {
-            Logger.Logg("Successfully send Task: {0} to agent '{0}'.", AgentTask.DownloadMaterials, agentId);
 
             var agent = Server.Instance.AgentsRepository[agentId];
 
-            return Server.Instance.Dispatcher.AssignTaskToAgent(agent);
+            var taskInfo = Server.Instance.Dispatcher.AssignTaskToAgent(agent);
+
+            Logger.Logg("Assigning Task: {0} to agent '{0}'.", taskInfo.Task, agentId);
+
+            return taskInfo;
         }
 
         [HttpPost]
-        public HttpStatusCode UploadReport(string agentId)
+        public HttpResponseMessage UploadReport(string agentId)
         {
-            return HttpStatusCode.OK;
-        }
+            HttpResponseMessage response = Request.CreateResponse();
+            HttpRequestMessage request = this.Request;
 
+            if (!request.Content.IsMimeMultipartContent())
+            {
+                throw new HttpResponseException(HttpStatusCode.UnsupportedMediaType);
+            }
+
+
+            try
+            {
+                var downloadDirectory = RnD.Controller.Configuration.GetFullPathToOutputFolder() + "\\" + agentId;
+
+                if (!Directory.Exists(downloadDirectory))
+                    Directory.CreateDirectory(downloadDirectory);
+
+                var provider = new CustomStreamProvider(downloadDirectory);
+
+                Request.Content.ReadAsMultipartAsync(provider).Wait();
+
+                return Request.CreateResponse(HttpStatusCode.OK);
+            }
+            catch (Exception exception)
+            {
+                response = Request.CreateErrorResponse(HttpStatusCode.InternalServerError, exception);
+            }
+            return response;
+
+        }
 
 
         [HttpGet]
@@ -105,7 +132,7 @@ namespace RnD.Controller
         {
             HttpResponseMessage response = Request.CreateResponse();
 
-            var filePath = "C:\\01.txt";
+            var filePath = Server.Instance.Dispatcher.ActiveZipFile;
 
             FileInfo fileInfo = new FileInfo(filePath);
             response.Headers.AcceptRanges.Add("bytes");
@@ -118,5 +145,30 @@ namespace RnD.Controller
 
             return response;
         }
+
+        #region CustomStreamProvider
+
+        //http://www.codeguru.com/csharp/.net/uploading-files-asynchronously-using-asp.net-web-api.htm
+        public class CustomStreamProvider : MultipartFormDataStreamProvider
+        {
+            public CustomStreamProvider(string uploadPath)
+                : base(uploadPath)
+            {
+
+            }
+
+            public override string GetLocalFileName(HttpContentHeaders headers)
+            {
+                string fileName = headers.ContentDisposition.FileName;
+                if (string.IsNullOrWhiteSpace(fileName))
+                {
+                    fileName = Guid.NewGuid().ToString() + ".data";
+                }
+                return fileName.Replace("\"", string.Empty);
+            }
+        }
+
+        #endregion //CustomStreamProvider
+
     }
 }

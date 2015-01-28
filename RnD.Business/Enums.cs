@@ -10,7 +10,10 @@ namespace RnD.Business
         ExecutingTasks,
         DownloadingMaterials,
         DownloadedMaterials,
-        UploadingResuls
+        UploadingResuls,
+        ClearingSandBox,
+        FileExtracted,
+        ExtractingFile
     }
 
     public enum ControllerStatus

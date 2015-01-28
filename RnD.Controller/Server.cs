@@ -1,5 +1,4 @@
 ﻿using RnD.Business;
-using RnD.Controller.Test;
 using System.Web.Http;
 using System.Web.Http.SelfHost;
 
@@ -46,10 +45,10 @@ namespace RnD.Controller
         {
             _agentsRepository = new AgentsRepository();
             _dispatcher = new Dispatcher(AgentsRepository);
-
-            TestRunner t = new TestRunner();
-            
+           
+            BaseAddress = string.Format("http://{0}:{1}", Configuration.ControllerName, Configuration.ControllerPort);
         }
+
 
         public static Server Instance
         {
@@ -65,7 +64,8 @@ namespace RnD.Controller
 
         #endregion //Singleton Implementation
 
-        public static string BaseAddress = "http://localhost:8080";
+        public static string BaseAddress;
+
 
         public void Start()
         {
@@ -83,6 +83,7 @@ namespace RnD.Controller
 
             Logger.Logg("Server started on address: {0}", BaseAddress);
 
+            _dispatcher.ReadRequest(@"C:\Users\sdimitrov\Documents\Visual Studio 2013\Projects\TestAutomationMock\NunitUnitTestProject\bin\Debug", "NunitUnitTestProject.dll /run:CalculatorLib.Tests");
         }
 
         public void Stop()
